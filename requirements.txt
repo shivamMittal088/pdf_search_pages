@@ -1,0 +1,9 @@
+fastapi==0.104.1
+gensim==4.3.3
+nltk==3.9.1
+pdfminer.six==20221105
+pydantic>=2.8,<3
+scikit_learn==1.6.1
+textblob==0.17.1
+tqdm==4.65.0
+uvicorn
