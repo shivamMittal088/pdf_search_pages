@@ -51,6 +51,8 @@
     .metric-val{font-size:28px;font-weight:800;margin-bottom:6px}
     .metric-label{color:#93a3b8}
     .meta-row{display:flex;justify-content:space-between;color:#93a3b8;margin-top:8px;font-size:12px}
+    .muted{color:#6b7280}
+    .danger{color:#b91c1c}
   </style>
 </head>
 <body>
@@ -67,7 +69,7 @@
           <option value="lsi">LSI</option>
           <option value="doc2vec">Doc2Vec</option>
         </select>
-        <button onclick="search()">Search</button>
+        <button id="btn-search">Search</button>
       </div>
       <div id="status">✅ Current Search Model: <span id="current-model">TF-IDF</span></div>
     </div>
@@ -82,7 +84,7 @@
           <option value="lsi">LSI</option>
           <option value="doc2vec">Doc2Vec</option>
         </select>
-        <button class="btn-build" onclick="buildIndex()">Build Selected Index</button>
+        <button class="btn-build" id="btn-build">Build Selected Index</button>
 
         <label style="margin-left:8px" for="metrics-mode">Metrics for:</label>
         <select id="metrics-mode">
@@ -90,8 +92,9 @@
           <option value="lsi">LSI</option>
           <option value="doc2vec">Doc2Vec</option>
         </select>
-        <button style="background:#111;color:#fff;border:1px solid #333" onclick="openMetrics()">📊 Performance</button>
+        <button style="background:#111;color:#fff;border:1px solid #333" id="btn-metrics">📊 Performance</button>
       </div>
+      <div class="muted">Tip: build each index once before searching in that mode.</div>
     </div>
 
     <!-- Results -->
@@ -113,9 +116,7 @@
         <button id="tab-docs"  class="tab" onclick="switchTab('docs')">Docs</button>
       </div>
 
-      <div class="metrics-grid" id="metrics-cards">
-        <!-- Filled by JS -->
-      </div>
+      <div class="metrics-grid" id="metrics-cards"></div>
 
       <div class="meta-row">
         <div>Mode: <span id="m-mode">-</span></div>
@@ -125,67 +126,114 @@
   </div>
 
   <script>
-    // Initialize current model label from server-rendered value if provided
-    const serverMode = "{{ current_mode if current_mode is defined else '' }}";
-    if (serverMode) {
-      document.getElementById("current-model").textContent = serverMode.toUpperCase();
-      document.getElementById("search-mode").value = serverMode;
-      document.getElementById("metrics-mode").value = serverMode;
-    }
+    // -------- Initial state from server (TF-IDF default on backend) ----------
+    const serverMode = "{{ current_mode if current_mode is defined else 'tfidf' }}";
+    const elCurrent = document.getElementById("current-model");
+    const elSearchMode = document.getElementById("search-mode");
+    const elMetricsMode = document.getElementById("metrics-mode");
+    const elBuildMode = document.getElementById("build-mode");
+    const elStatus = document.getElementById("status");
+    const elResults = document.getElementById("results");
 
-    document.getElementById("search-mode").addEventListener("change", e => {
-      document.getElementById("current-model").textContent = e.target.value.toUpperCase();
+    // Set dropdowns/label to server mode
+    elSearchMode.value = serverMode;
+    elMetricsMode.value = serverMode;
+    elBuildMode.value = serverMode;
+    elCurrent.textContent = serverMode.toUpperCase();
+
+    // Keep label in sync when user switches the search mode
+    elSearchMode.addEventListener("change", e => {
+      elCurrent.textContent = e.target.value.toUpperCase();
     });
 
+    // Enter-to-search
+    document.getElementById("query").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") search();
+    });
+
+    // Button handlers
+    document.getElementById("btn-search").addEventListener("click", search);
+    document.getElementById("btn-build").addEventListener("click", buildIndex);
+    document.getElementById("btn-metrics").addEventListener("click", openMetrics);
+
+    // -------- Search ----------
     async function search() {
       const q = document.getElementById("query").value.trim();
-      const mode = document.getElementById("search-mode").value;
-      const resultsDiv = document.getElementById("results");
-      const statusDiv = document.getElementById("status");
-      const currentModelLabel = document.getElementById("current-model");
+      const mode = elSearchMode.value;
+      const btn = document.getElementById("btn-search");
 
-      if (!q) { resultsDiv.innerHTML = "<p>Please enter a query.</p>"; return; }
-
-      statusDiv.innerHTML = `🔎 Searching with ${mode.toUpperCase()} <span class="loader"></span>`;
-      currentModelLabel.textContent = mode.toUpperCase();
-
-      const res = await fetch(`/search?query=${encodeURIComponent(q)}&mode=${mode}`);
-      const data = await res.json();
-
-      if (!data.results || data.results.length === 0) {
-        resultsDiv.innerHTML = "<p>No results found.</p>";
-        statusDiv.textContent = "⚠️ No results found.";
+      if (!q) {
+        elResults.innerHTML = "<p>Please enter a query.</p>";
         return;
       }
 
-      statusDiv.textContent = `✅ Found ${data.results.length} results using ${data.mode.toUpperCase()}.`;
+      elStatus.innerHTML = `🔎 Searching with ${mode.toUpperCase()} <span class="loader"></span>`;
+      btn.disabled = true;
 
-      resultsDiv.innerHTML = "";
-      data.results.forEach((r, i) => {
-        const el = document.createElement("div");
-        el.className = "card";
-        el.innerHTML = `
-          <div class="title">${i + 1}. <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a>
-            <span style="color:#666;font-weight:500"> (Page ${r.page})</span>
-          </div>
-          <div class="meta"><b>Score:</b> ${r.score.toFixed(4)} &nbsp;|&nbsp; <b>Sentiment:</b> ${r.sentiment.toFixed(3)}</div>
-          <div class="bar"><div class="fill" style="width:${(r.score * 100).toFixed(1)}%"></div></div>
-        `;
-        resultsDiv.appendChild(el);
-      });
+      try {
+        const res = await fetch(`/search?query=${encodeURIComponent(q)}&mode=${mode}`);
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          if (data.need_build) {
+            elStatus.innerHTML = `⚠️ ${data.error} — go to <b>Rebuild</b> and build <b>${mode.toUpperCase()}</b>.`;
+            elResults.innerHTML = `<p class="muted">Index not built for ${mode.toUpperCase()}. Click <em>Build Selected Index</em> first.</p>`;
+            return;
+          }
+          throw new Error(data?.error || `HTTP ${res.status}`);
+        }
+
+        if (!data.results || data.results.length === 0) {
+          elResults.innerHTML = "<p>No results found.</p>";
+          elStatus.textContent = "⚠️ No results found.";
+          return;
+        }
+
+        elStatus.textContent = `✅ Found ${data.results.length} results using ${data.mode.toUpperCase()}.`;
+
+        elResults.innerHTML = "";
+        data.results.forEach((r, i) => {
+          const el = document.createElement("div");
+          el.className = "card";
+          el.innerHTML = `
+            <div class="title">${i + 1}. <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a>
+              <span style="color:#666;font-weight:500"> (Page ${r.page})</span>
+            </div>
+            <div class="meta"><b>Score:</b> ${r.score.toFixed(4)} &nbsp;|&nbsp; <b>Sentiment:</b> ${r.sentiment.toFixed(3)}</div>
+            <div class="bar"><div class="fill" style="width:${(r.score * 100).toFixed(1)}%"></div></div>
+          `;
+          elResults.appendChild(el);
+        });
+      } catch (err) {
+        console.error(err);
+        elResults.innerHTML = `<p class="danger">❌ Search failed: ${err.message}</p>`;
+        elStatus.innerHTML = `<span class="danger">❌ Search failed.</span>`;
+      } finally {
+        btn.disabled = false;
+      }
     }
 
+    // -------- Build index ----------
     async function buildIndex() {
-      const mode = document.getElementById("build-mode").value;
-      const statusDiv = document.getElementById("status");
-      statusDiv.innerHTML = `⚙️ Building ${mode.toUpperCase()} index… <span class="loader"></span>`;
+      const mode = elBuildMode.value;
+      const btn = document.getElementById("btn-build");
+
+      elStatus.innerHTML = `⚙️ Building ${mode.toUpperCase()} index… <span class="loader"></span>`;
+      btn.disabled = true;
+
       try {
         const res = await fetch(`/build_index?mode=${mode}`, { method: "POST" });
         const data = await res.json();
-        statusDiv.textContent = `✅ ${data.message}`;
+
+        if (!res.ok || data.error) {
+          throw new Error(data?.error || `HTTP ${res.status}`);
+        }
+        elStatus.textContent = `✅ ${data.message}`;
       } catch (e) {
         console.error(e);
-        statusDiv.textContent = `❌ Failed to build ${mode.toUpperCase()} index.`;
+        elStatus.innerHTML = `<span class="danger">❌ Failed to build ${mode.toUpperCase()} index: ${e.message}</span>`;
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -208,33 +256,45 @@
     }
 
     async function fetchMetrics() {
-      const mode = document.getElementById("metrics-mode").value;
-      const res = await fetch(`/metrics?mode=${mode}`);
-      metricsCache = await res.json();
+      const mode = elMetricsMode.value;
+      try {
+        const res = await fetch(`/metrics?mode=${mode}`);
+        metricsCache = await res.json();
+      } catch {
+        metricsCache = { error: "Bad response" };
+      }
     }
 
     function renderMetrics() {
+      const cardsRoot = document.getElementById("metrics-cards");
       if (!metricsCache || metricsCache.error){ 
-        document.getElementById("metrics-cards").innerHTML = "<div style='grid-column:1/-1;color:#cbd5e1'>No eval_set.json found.</div>";
+        cardsRoot.innerHTML = "<div style='grid-column:1/-1;color:#cbd5e1'>No eval_set.json found or index missing for selected mode.</div>";
         document.getElementById("m-mode").textContent = "-";
         document.getElementById("m-k").textContent = "-";
         return;
       }
+      if (metricsCache.need_build){
+        cardsRoot.innerHTML = `<div style='grid-column:1/-1;color:#cbd5e1'>${metricsCache.error}</div>`;
+        document.getElementById("m-mode").textContent = metricsCache.mode?.toUpperCase?.() || "-";
+        document.getElementById("m-k").textContent = "-";
+        return;
+      }
+
       const data = metricsCache[activeTab];
       const cards = `
         <div class="metric-card">
-          <div class="metric-val">${data.recall.toFixed(2)}</div>
+          <div class="metric-val">${Number(data.recall ?? 0).toFixed(2)}</div>
           <div class="metric-label">Recall</div>
         </div>
         <div class="metric-card">
-          <div class="metric-val">${data.precision.toFixed(2)}</div>
+          <div class="metric-val">${Number(data.precision ?? 0).toFixed(2)}</div>
           <div class="metric-label">Precision</div>
         </div>
         <div class="metric-card">
-          <div class="metric-val">${data.f1.toFixed(2)}</div>
+          <div class="metric-val">${Number(data.f1 ?? 0).toFixed(2)}</div>
           <div class="metric-label">F1 Score</div>
         </div>`;
-      document.getElementById("metrics-cards").innerHTML = cards;
+      cardsRoot.innerHTML = cards;
       document.getElementById("m-mode").textContent = (metricsCache.mode || "").toUpperCase();
       document.getElementById("m-k").textContent = metricsCache.k;
     }
