@@ -58,5 +58,5 @@ This project is licensed under the MIT License. See the [LICENSE](/LICENSE) file
 
 
 conda activate pdfsearch312
-cd D:\aj_pdf_search_engine-main
-python main.py --docs .\docs --index test.tfidf.pkl
+
+python main.py --mode doc2vec --update-index --docs docs --index index_data_doc2vec.pkl

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Search Engine</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f6f8;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            background: #007bff;
+            color: white;
+            padding: 15px 0;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 10px;
+            width: 300px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        select, button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #007bff;
+            cursor: pointer;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #status {
+            margin: 10px 0;
+            font-weight: bold;
+            color: #007bff;
+        }
+        #results {
+            width: 80%;
+            max-width: 800px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .result {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .result:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Intelligent PDF Search Engine</h1>
+
+    <div id="controls">
+        <input type="text" id="query" placeholder="Enter your query...">
+        <select id="mode">
+            <option value="tfidf">TF-IDF</option>
+            <option value="lsi">LSI</option>
+            <option value="doc2vec">Doc2Vec</option>
+        </select>
+        <button onclick="search()">Search</button>
+    </div>
+
+    <div id="status">✅ Current model: <span id="current-model">TF-IDF</span></div>
+
+    <div id="results"></div>
+
+    <script>
+        async function search() {
+            const query = document.getElementById("query").value.trim();
+            const mode = document.getElementById("mode").value;
+            const resultsDiv = document.getElementById("results");
+            const currentModelLabel = document.getElementById("current-model");
+            
+            if (!query) {
+                resultsDiv.innerHTML = "<p>Please enter a query.</p>";
+                return;
+            }
+
+            resultsDiv.innerHTML = "<p>🔎 Searching using " + mode.toUpperCase() + " model...</p>";
+
+            // Update model indicator in UI
+            currentModelLabel.textContent = mode.toUpperCase();
+
+            const response = await fetch(`/search?query=${encodeURIComponent(query)}&mode=${mode}`);
+            const data = await response.json();
+
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = "<p>No results found.</p>";
+                return;
+            }
+
+            resultsDiv.innerHTML = "<h3>Top Results (" + mode.toUpperCase() + "):</h3>";
+            data.results.forEach((r, i) => {
+                const div = document.createElement("div");
+                div.className = "result";
+                div.innerHTML = `
+                    <strong>${i + 1}. ${r.name}</strong><br>
+                    <em>Path:</em> ${r.path}<br>
+                    <em>Score:</em> ${r.score.toFixed(4)} | 
+                    <em>Sentiment:</em> ${r.sentiment.toFixed(3)}
+                `;
+                resultsDiv.appendChild(div);
+            });
+        }
+
+        // update UI when user changes model manually (without search)
+        document.getElementById("mode").addEventListener("change", (e) => {
+            document.getElementById("current-model").textContent = e.target.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>
