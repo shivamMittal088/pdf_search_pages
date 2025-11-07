@@ -1,137 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Search Engine</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #f4f6f8;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        h1 {
-            background: #007bff;
-            color: white;
-            padding: 15px 0;
-            width: 100%;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        #controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-        input {
-            padding: 10px;
-            width: 300px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-        select, button {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #007bff;
-            cursor: pointer;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            transition: 0.3s;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        #status {
-            margin: 10px 0;
-            font-weight: bold;
-            color: #007bff;
-        }
-        #results {
-            width: 80%;
-            max-width: 800px;
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        .result {
-            border-bottom: 1px solid #eee;
-            padding: 10px 0;
-        }
-        .result:last-child {
-            border-bottom: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI PDF Search Engine</title>
+  <style>
+    :root{
+      --primary:#007bff;--accent:#17a2b8;--success:#28a745;
+      --bg:#eef2f5;--text:#1d1d1f;--card:#fff;--shadow:rgba(0,0,0,.15)
+    }
+    *{box-sizing:border-box}
+    body{font-family:"Poppins","Segoe UI",sans-serif;background:var(--bg);color:var(--text);margin:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;width:100%;text-align:center;padding:26px 12px;box-shadow:0 3px 6px var(--shadow)}
+    header h1{margin:0;font-size:28px;letter-spacing:.5px}
+    main{width:92%;max-width:1100px;margin:28px 0}
+    .panel{background:var(--card);padding:22px;border-radius:12px;box-shadow:0 4px 10px var(--shadow);margin-bottom:22px;transition:transform .2s}
+    .panel:hover{transform:translateY(-2px)}
+    .panel h2{margin:0 0 14px;color:var(--primary);font-size:20px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input,select,button{padding:10px 12px;border-radius:8px;border:1px solid #cfd8e3;font-size:15px}
+    input{flex:1;min-width:260px}
+    select{background:#e8f8fc;border-color:#9bd3e0}
+    button{background:var(--primary);color:#fff;border:none;cursor:pointer;font-weight:600;transition:.25s}
+    button:hover{filter:brightness(.92)}
+    .btn-build{background:var(--accent)}
+    #status{margin-top:10px;text-align:center;color:var(--accent);font-weight:600}
+    #results{margin-top:22px;display:grid;grid-template-columns:1fr;gap:14px}
+    .card{background:var(--card);padding:18px 20px;border-radius:10px;box-shadow:0 2px 8px var(--shadow);transition:all .2s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 6px 14px var(--shadow)}
+    .title{font-weight:700;color:var(--primary);font-size:18px}
+    .title a{color:var(--primary);text-decoration:none}
+    .title a:hover{text-decoration:underline}
+    .meta{margin-top:6px;color:#555;font-size:14px}
+    .bar{height:8px;background:#e9ecef;border-radius:8px;margin-top:10px;overflow:hidden}
+    .fill{height:100%;background:var(--success);width:0;transition:width .6s ease}
+    footer{margin-top:auto;padding:16px;color:#6b7280}
+    .loader{display:inline-block;width:16px;height:16px;border:3px solid rgba(0,0,0,.1);border-radius:50%;border-top-color:var(--accent);animation:spin 1s linear infinite;margin-left:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Modal */
+    .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;z-index:1000}
+    .modal{background:#0f172a;color:#fff;width:520px;max-width:92vw;border-radius:14px;padding:16px 16px 12px;border:1px solid #334155;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .modal-header{display:flex;align-items:center;justify-content:space-between}
+    .modal-header h3{margin:0;font-size:20px}
+    .modal-close{background:transparent;border:none;color:#94a3b8;font-size:20px;cursor:pointer}
+    .tabs{margin-top:12px;background:#111827;border-radius:10px;padding:6px;display:flex;gap:8px}
+    .tab{flex:1;padding:8px 0;border:none;border-radius:8px;background:#1f2937;color:#cbd5e1;cursor:pointer}
+    .tab.active{background:#0b1222;color:#fff;border:1px solid #334155}
+    .metrics-grid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .metric-card{background:#0b1222;border:1px solid #334155;border-radius:12px;padding:18px;text-align:center}
+    .metric-val{font-size:28px;font-weight:800;margin-bottom:6px}
+    .metric-label{color:#93a3b8}
+    .meta-row{display:flex;justify-content:space-between;color:#93a3b8;margin-top:8px;font-size:12px}
+  </style>
 </head>
 <body>
-    <h1>🔍 Intelligent PDF Search Engine</h1>
+  <header><h1>🤖 AI-Powered PDF Search Engine</h1></header>
 
-    <div id="controls">
-        <input type="text" id="query" placeholder="Enter your query...">
-        <select id="mode">
-            <option value="tfidf">TF-IDF</option>
-            <option value="lsi">LSI</option>
-            <option value="doc2vec">Doc2Vec</option>
+  <main>
+    <!-- Search -->
+    <div class="panel">
+      <h2>🔎 Search Documents</h2>
+      <div class="controls">
+        <input id="query" type="text" placeholder="Enter your search query…"/>
+        <select id="search-mode">
+          <option value="tfidf">TF-IDF</option>
+          <option value="lsi">LSI</option>
+          <option value="doc2vec">Doc2Vec</option>
         </select>
         <button onclick="search()">Search</button>
+      </div>
+      <div id="status">✅ Current Search Model: <span id="current-model">TF-IDF</span></div>
     </div>
 
-    <div id="status">✅ Current model: <span id="current-model">TF-IDF</span></div>
+    <!-- Build / Metrics -->
+    <div class="panel">
+      <h2>⚙️ Rebuild Index & Metrics</h2>
+      <div class="controls">
+        <label for="build-mode">Rebuild:</label>
+        <select id="build-mode">
+          <option value="tfidf">TF-IDF</option>
+          <option value="lsi">LSI</option>
+          <option value="doc2vec">Doc2Vec</option>
+        </select>
+        <button class="btn-build" onclick="buildIndex()">Build Selected Index</button>
 
+        <label style="margin-left:8px" for="metrics-mode">Metrics for:</label>
+        <select id="metrics-mode">
+          <option value="tfidf">TF-IDF</option>
+          <option value="lsi">LSI</option>
+          <option value="doc2vec">Doc2Vec</option>
+        </select>
+        <button style="background:#111;color:#fff;border:1px solid #333" onclick="openMetrics()">📊 Performance</button>
+      </div>
+    </div>
+
+    <!-- Results -->
     <div id="results"></div>
+  </main>
 
-    <script>
-        async function search() {
-            const query = document.getElementById("query").value.trim();
-            const mode = document.getElementById("mode").value;
-            const resultsDiv = document.getElementById("results");
-            const currentModelLabel = document.getElementById("current-model");
-            
-            if (!query) {
-                resultsDiv.innerHTML = "<p>Please enter a query.</p>";
-                return;
-            }
+  <footer>© 2025 AI PDF Search Engine — Flask + ML</footer>
 
-            resultsDiv.innerHTML = "<p>🔎 Searching using " + mode.toUpperCase() + " model...</p>";
+  <!-- Metrics Modal -->
+  <div id="metrics-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Performance Metrics</h3>
+        <button class="modal-close" onclick="closeMetrics()">✕</button>
+      </div>
 
-            // Update model indicator in UI
-            currentModelLabel.textContent = mode.toUpperCase();
+      <div class="tabs">
+        <button id="tab-pages" class="tab active" onclick="switchTab('pages')">Pages</button>
+        <button id="tab-docs"  class="tab" onclick="switchTab('docs')">Docs</button>
+      </div>
 
-            const response = await fetch(`/search?query=${encodeURIComponent(query)}&mode=${mode}`);
-            const data = await response.json();
+      <div class="metrics-grid" id="metrics-cards">
+        <!-- Filled by JS -->
+      </div>
 
-            if (!data.results || data.results.length === 0) {
-                resultsDiv.innerHTML = "<p>No results found.</p>";
-                return;
-            }
+      <div class="meta-row">
+        <div>Mode: <span id="m-mode">-</span></div>
+        <div>K: <span id="m-k">-</span></div>
+      </div>
+    </div>
+  </div>
 
-            resultsDiv.innerHTML = "<h3>Top Results (" + mode.toUpperCase() + "):</h3>";
-            data.results.forEach((r, i) => {
-                const div = document.createElement("div");
-                div.className = "result";
-                div.innerHTML = `
-                    <strong>${i + 1}. ${r.name}</strong><br>
-                    <em>Path:</em> ${r.path}<br>
-                    <em>Score:</em> ${r.score.toFixed(4)} | 
-                    <em>Sentiment:</em> ${r.sentiment.toFixed(3)}
-                `;
-                resultsDiv.appendChild(div);
-            });
-        }
+  <script>
+    // Initialize current model label from server-rendered value if provided
+    const serverMode = "{{ current_mode if current_mode is defined else '' }}";
+    if (serverMode) {
+      document.getElementById("current-model").textContent = serverMode.toUpperCase();
+      document.getElementById("search-mode").value = serverMode;
+      document.getElementById("metrics-mode").value = serverMode;
+    }
 
-        // update UI when user changes model manually (without search)
-        document.getElementById("mode").addEventListener("change", (e) => {
-            document.getElementById("current-model").textContent = e.target.value.toUpperCase();
-        });
-    </script>
+    document.getElementById("search-mode").addEventListener("change", e => {
+      document.getElementById("current-model").textContent = e.target.value.toUpperCase();
+    });
+
+    async function search() {
+      const q = document.getElementById("query").value.trim();
+      const mode = document.getElementById("search-mode").value;
+      const resultsDiv = document.getElementById("results");
+      const statusDiv = document.getElementById("status");
+      const currentModelLabel = document.getElementById("current-model");
+
+      if (!q) { resultsDiv.innerHTML = "<p>Please enter a query.</p>"; return; }
+
+      statusDiv.innerHTML = `🔎 Searching with ${mode.toUpperCase()} <span class="loader"></span>`;
+      currentModelLabel.textContent = mode.toUpperCase();
+
+      const res = await fetch(`/search?query=${encodeURIComponent(q)}&mode=${mode}`);
+      const data = await res.json();
+
+      if (!data.results || data.results.length === 0) {
+        resultsDiv.innerHTML = "<p>No results found.</p>";
+        statusDiv.textContent = "⚠️ No results found.";
+        return;
+      }
+
+      statusDiv.textContent = `✅ Found ${data.results.length} results using ${data.mode.toUpperCase()}.`;
+
+      resultsDiv.innerHTML = "";
+      data.results.forEach((r, i) => {
+        const el = document.createElement("div");
+        el.className = "card";
+        el.innerHTML = `
+          <div class="title">${i + 1}. <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a>
+            <span style="color:#666;font-weight:500"> (Page ${r.page})</span>
+          </div>
+          <div class="meta"><b>Score:</b> ${r.score.toFixed(4)} &nbsp;|&nbsp; <b>Sentiment:</b> ${r.sentiment.toFixed(3)}</div>
+          <div class="bar"><div class="fill" style="width:${(r.score * 100).toFixed(1)}%"></div></div>
+        `;
+        resultsDiv.appendChild(el);
+      });
+    }
+
+    async function buildIndex() {
+      const mode = document.getElementById("build-mode").value;
+      const statusDiv = document.getElementById("status");
+      statusDiv.innerHTML = `⚙️ Building ${mode.toUpperCase()} index… <span class="loader"></span>`;
+      try {
+        const res = await fetch(`/build_index?mode=${mode}`, { method: "POST" });
+        const data = await res.json();
+        statusDiv.textContent = `✅ ${data.message}`;
+      } catch (e) {
+        console.error(e);
+        statusDiv.textContent = `❌ Failed to build ${mode.toUpperCase()} index.`;
+      }
+    }
+
+    // --------- Metrics modal ----------
+    let metricsCache = null;
+    let activeTab = 'pages';
+
+    function openMetrics() {
+      fetchMetrics().then(() => {
+        document.getElementById("metrics-modal").style.display = "flex";
+        renderMetrics();
+      });
+    }
+    function closeMetrics(){ document.getElementById("metrics-modal").style.display = "none"; }
+    function switchTab(tab){
+      activeTab = tab;
+      document.getElementById("tab-pages").classList.toggle("active", tab==='pages');
+      document.getElementById("tab-docs").classList.toggle("active", tab==='docs');
+      renderMetrics();
+    }
+
+    async function fetchMetrics() {
+      const mode = document.getElementById("metrics-mode").value;
+      const res = await fetch(`/metrics?mode=${mode}`);
+      metricsCache = await res.json();
+    }
+
+    function renderMetrics() {
+      if (!metricsCache || metricsCache.error){ 
+        document.getElementById("metrics-cards").innerHTML = "<div style='grid-column:1/-1;color:#cbd5e1'>No eval_set.json found.</div>";
+        document.getElementById("m-mode").textContent = "-";
+        document.getElementById("m-k").textContent = "-";
+        return;
+      }
+      const data = metricsCache[activeTab];
+      const cards = `
+        <div class="metric-card">
+          <div class="metric-val">${data.recall.toFixed(2)}</div>
+          <div class="metric-label">Recall</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val">${data.precision.toFixed(2)}</div>
+          <div class="metric-label">Precision</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val">${data.f1.toFixed(2)}</div>
+          <div class="metric-label">F1 Score</div>
+        </div>`;
+      document.getElementById("metrics-cards").innerHTML = cards;
+      document.getElementById("m-mode").textContent = (metricsCache.mode || "").toUpperCase();
+      document.getElementById("m-k").textContent = metricsCache.k;
+    }
+  </script>
 </body>
 </html>

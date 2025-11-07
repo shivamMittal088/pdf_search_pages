@@ -1,0 +1,27 @@
+{
+  "k": 5,
+  "queries": [
+    {
+      "text": "lord rama",
+      "relevant_pages": [
+        ["011_Beyond_Psychology.pdf", 45],
+        ["012_Bodhidharma.pdf", 215]
+      ],
+      "relevant_docs": [
+        "011_Beyond_Psychology.pdf",
+        "012_Bodhidharma.pdf"
+      ]
+    },
+    {
+      "text": "krishna teachings",
+      "relevant_pages": [
+        ["008_The_Beloved_Vol_1.pdf", 60],
+        ["009_The_Beloved_Vol_2.pdf", 122]
+      ],
+      "relevant_docs": [
+        "008_The_Beloved_Vol_1.pdf",
+        "009_The_Beloved_Vol_2.pdf"
+      ]
+    }
+  ]
+}
